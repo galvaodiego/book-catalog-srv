@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: livros_postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: livros_user
+      POSTGRES_PASSWORD: livros_pass
+      POSTGRES_DB: livros_db
+    volumes:
+      - livros_data:/var/lib/postgresql/data
+
+volumes:
+  livros_data:

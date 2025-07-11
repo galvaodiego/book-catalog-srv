@@ -71,7 +71,7 @@ export class LivrosService {
       where: { id },
       data: {
         ...data,
-        autores: data.autores as Prisma.InputJsonValue,
+        autores: data.autores as string[],
       },
     });
 

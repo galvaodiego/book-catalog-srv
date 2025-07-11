@@ -22,7 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { PaginatedResponseDto } from './dto/paginated-response.dto';
 import { LivroResponseDto } from './dto/livro-response.dto';
-import { SingleResponseDto } from './dto/single-response.dto';
+import { SingleResponseDto } from '../shared/dto/single-response.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
 
 @ApiTags('Livros')

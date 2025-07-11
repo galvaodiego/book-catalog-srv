@@ -3,17 +3,40 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // ou "mysql", conforme seu banco
   url      = env("DATABASE_URL")
 }
 
+model Usuario {
+  id        Int              @id @default(autoincrement())
+  nome      String
+  email     String           @unique
+  senha     String
+  createdAt DateTime         @default(now())
+
+  livros    UsuarioLivro[]   // Relação com os livros do usuário
+}
+
 model Livro {
-  id        Int      @id @default(autoincrement())
+  id        Int              @id @default(autoincrement())
   titulo    String
-  isbn      String   @unique
+  isbn      String           @unique
   editora   String?
   paginas   Int?
   ano       Int?
-  autores   Json?
+  autores   String[]         @default([])
+  createdAt DateTime         @default(now())
+
+  usuarios  UsuarioLivro[]   // Relação com os usuários
+}
+
+model UsuarioLivro {
+  id        Int      @id @default(autoincrement())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId Int
+  livro     Livro    @relation(fields: [livroId], references: [id], onDelete: Cascade)
+  livroId   Int
   createdAt DateTime @default(now())
+
+  @@unique([usuarioId, livroId]) // Evita duplicidade
 }

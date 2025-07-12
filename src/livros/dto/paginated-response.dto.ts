@@ -7,9 +7,13 @@ export class PaginatedResponseDto<T> {
   @ApiProperty({ example: 10, description: 'Quantidade de itens por página' })
   limit: number;
 
-  @ApiProperty({ example: 100, description: 'Total de registros' })
+  @ApiProperty({ example: 100, description: 'Total de registros encontrados' })
   totalRecords: number;
 
-  @ApiProperty({ isArray: true, type: Object }) // mantemos genérico aqui
+  @ApiProperty({
+    description: 'Lista de itens da página atual',
+    isArray: true,
+    type: Object, // o Swagger vai entender via @ApiExtraModels no controller
+  })
   data: T[];
 }

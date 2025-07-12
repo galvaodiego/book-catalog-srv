@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLivroDto } from './dto/create-livro.dto';
@@ -14,9 +15,24 @@ import { Livro, Prisma } from '@prisma/client';
 export class LivrosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: CreateLivroDto): Promise<LivroResponseDto> {
+  async create(
+    data: CreateLivroDto,
+    usuarioId: number,
+  ): Promise<LivroResponseDto> {
+    if (!usuarioId) {
+      throw new BadRequestException('Usuário não identificado');
+    }
+
     try {
       const livro = await this.prisma.livro.create({ data });
+
+      await this.prisma.usuarioLivro.create({
+        data: {
+          usuarioId,
+          livroId: livro.id,
+        },
+      });
+
       return this.mapToResponseDto(livro);
     } catch (error) {
       if (
@@ -34,12 +50,20 @@ export class LivrosService {
   async findAll(
     page = 1,
     limit = 10,
+    userId: number,
   ): Promise<PaginatedResponseDto<LivroResponseDto>> {
     const skip = (page - 1) * limit;
 
     const [totalRecords, livros] = await this.prisma.$transaction([
-      this.prisma.livro.count(),
+      this.prisma.usuarioLivro.count({
+        where: { usuarioId: userId },
+      }),
       this.prisma.livro.findMany({
+        where: {
+          usuarios: {
+            some: { usuarioId: userId },
+          },
+        },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -66,7 +90,24 @@ export class LivrosService {
     return this.mapToResponseDto(livro);
   }
 
-  async update(id: number, data: UpdateLivroDto): Promise<LivroResponseDto> {
+  async update(
+    id: number,
+    data: UpdateLivroDto,
+    userId: number,
+  ): Promise<LivroResponseDto> {
+    const associacao = await this.prisma.usuarioLivro.findUnique({
+      where: {
+        usuarioId_livroId: {
+          usuarioId: userId,
+          livroId: id,
+        },
+      },
+    });
+
+    if (!associacao) {
+      throw new NotFoundException('Livro não encontrado para este usuário');
+    }
+
     const livro = await this.prisma.livro.update({
       where: { id },
       data: {
@@ -78,7 +119,29 @@ export class LivrosService {
     return this.mapToResponseDto(livro);
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId: number) {
+    const associacao = await this.prisma.usuarioLivro.findUnique({
+      where: {
+        usuarioId_livroId: {
+          usuarioId: userId,
+          livroId: id,
+        },
+      },
+    });
+
+    if (!associacao) {
+      throw new NotFoundException('Livro não encontrado para este usuário');
+    }
+
+    await this.prisma.usuarioLivro.delete({
+      where: {
+        usuarioId_livroId: {
+          usuarioId: userId,
+          livroId: id,
+        },
+      },
+    });
+
     return this.prisma.livro.delete({ where: { id } });
   }
 

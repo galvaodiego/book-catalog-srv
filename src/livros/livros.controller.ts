@@ -9,6 +9,8 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { LivrosService } from './livros.service';
 import { CreateLivroDto } from './dto/create-livro.dto';
@@ -24,6 +26,8 @@ import { PaginatedResponseDto } from './dto/paginated-response.dto';
 import { LivroResponseDto } from './dto/livro-response.dto';
 import { SingleResponseDto } from '../shared/dto/single-response.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { RequestWithUser } from './interfaces/request-with-user.interface';
 
 @ApiTags('Livros')
 @ApiExtraModels(
@@ -32,6 +36,7 @@ import { MessageResponseDto } from './dto/message-response.dto';
   SingleResponseDto,
   MessageResponseDto,
 )
+@UseGuards(AuthGuard('jwt'))
 @Controller('livros')
 export class LivrosController {
   constructor(private readonly livrosService: LivrosService) {}
@@ -52,8 +57,10 @@ export class LivrosController {
   })
   async create(
     @Body() dto: CreateLivroDto,
+    @Req() req: RequestWithUser,
   ): Promise<SingleResponseDto<LivroResponseDto>> {
-    const livro = await this.livrosService.create(dto);
+    const userId = req.user.sub;
+    const livro = await this.livrosService.create(dto, userId);
     return {
       success: true,
       data: livro,
@@ -82,8 +89,10 @@ export class LivrosController {
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Req() req: RequestWithUser,
   ): Promise<PaginatedResponseDto<LivroResponseDto>> {
-    return this.livrosService.findAll(page, limit);
+    const userId = req.user.sub;
+    return this.livrosService.findAll(page, limit, userId);
   }
 
   @Get(':id')
@@ -127,8 +136,10 @@ export class LivrosController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateLivroDto,
+    @Req() req: RequestWithUser,
   ): Promise<SingleResponseDto<LivroResponseDto>> {
-    const livro = await this.livrosService.update(id, dto);
+    const userId = req.user.sub;
+    const livro = await this.livrosService.update(id, dto, userId);
     return {
       success: true,
       data: livro,
@@ -144,8 +155,10 @@ export class LivrosController {
   })
   async remove(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
   ): Promise<MessageResponseDto> {
-    await this.livrosService.remove(id);
+    const userId = req.user.sub;
+    await this.livrosService.remove(id, userId);
     return {
       success: true,
       message: 'Livro removido com sucesso',

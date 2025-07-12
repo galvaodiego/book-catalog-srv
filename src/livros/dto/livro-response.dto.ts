@@ -1,27 +1,44 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LivroResponseDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Identificador único do livro' })
   id: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Título do livro' })
   titulo: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'ISBN do livro' })
   isbn: string;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({
+    description: 'Nome da editora',
+    required: false,
+    nullable: true,
+  })
   editora?: string | null;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({
+    description: 'Número total de páginas',
+    required: false,
+    nullable: true,
+  })
   paginas?: number | null;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({
+    description: 'Ano de publicação',
+    required: false,
+    nullable: true,
+  })
   ano?: number | null;
 
-  @ApiProperty({ required: false, type: [String], nullable: true })
+  @ApiProperty({
+    description: 'Lista de autores',
+    type: [String],
+    required: false,
+    nullable: true,
+  })
   autores?: string[] | null;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Data de criação do registro' })
   createdAt: Date;
 }

@@ -6,26 +6,24 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly configService: ConfigService) {
-    const jwtSecret = configService.get<string>('JWT_SECRET');
-
-    if (typeof jwtSecret !== 'string') {
-      throw new Error(
-        'JWT_SECRET não definido ou inválido nas variáveis de ambiente',
-      );
+  constructor(private configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT_SECRET não está definido no .env');
     }
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
+      secretOrKey: secret,
     });
   }
 
   validate(payload: JwtPayload) {
     return {
-      id: payload.sub,
+      sub: payload.id,
       email: payload.email,
+      nome: payload.nome,
     };
   }
 }

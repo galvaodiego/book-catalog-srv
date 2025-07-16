@@ -2,150 +2,42 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLivroDto } from './dto/create-livro.dto';
 import { UpdateLivroDto } from './dto/update-livro.dto';
-import { PaginatedResponseDto } from './dto/paginated-response.dto';
 import { LivroResponseDto } from './dto/livro-response.dto';
-import { Livro, Prisma } from '@prisma/client';
+import { PaginatedResponseDto } from './dto/paginated-response.dto';
 
 @Injectable()
 export class LivrosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    data: CreateLivroDto,
-    usuarioId: number,
-  ): Promise<LivroResponseDto> {
-    if (!usuarioId) {
-      throw new BadRequestException('Usuário não identificado');
-    }
-
-    try {
-      const livro = await this.prisma.livro.create({ data });
-
-      await this.prisma.usuarioLivro.create({
-        data: {
-          usuarioId,
-          livroId: livro.id,
-        },
-      });
-
-      return this.mapToResponseDto(livro);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'Já existe um livro com este ISBN cadastrado.',
-        );
-      }
-      throw error;
-    }
-  }
-
-  async findAll(
-    page = 1,
-    limit = 10,
-    userId: number,
-  ): Promise<PaginatedResponseDto<LivroResponseDto>> {
-    const skip = (page - 1) * limit;
-
-    const [totalRecords, livros] = await this.prisma.$transaction([
-      this.prisma.usuarioLivro.count({
-        where: { usuarioId: userId },
-      }),
-      this.prisma.livro.findMany({
-        where: {
-          usuarios: {
-            some: { usuarioId: userId },
-          },
-        },
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
-
-    const data = livros.map((livro) => this.mapToResponseDto(livro));
-
-    return {
-      totalRecords,
-      page,
-      limit,
-      data,
-    };
-  }
-
-  async findOne(id: number): Promise<LivroResponseDto> {
-    const livro = await this.prisma.livro.findUnique({ where: { id } });
-
-    if (!livro) {
-      throw new NotFoundException('Livro não encontrado');
-    }
-
-    return this.mapToResponseDto(livro);
-  }
-
-  async update(
-    id: number,
-    data: UpdateLivroDto,
-    userId: number,
-  ): Promise<LivroResponseDto> {
-    const associacao = await this.prisma.usuarioLivro.findUnique({
+  async create(dto: CreateLivroDto, userId: number): Promise<LivroResponseDto> {
+    // Verifica se o livro já existe para o mesmo usuário com o mesmo ISBN
+    const existente = await this.prisma.livro.findFirst({
       where: {
-        usuarioId_livroId: {
-          usuarioId: userId,
-          livroId: id,
-        },
+        usuarioId: userId,
+        isbn: dto.isbn,
       },
     });
 
-    if (!associacao) {
-      throw new NotFoundException('Livro não encontrado para este usuário');
+    if (existente) {
+      throw new ConflictException('Este livro já está no seu catálogo');
     }
 
-    const livro = await this.prisma.livro.update({
-      where: { id },
+    const livro = await this.prisma.livro.create({
       data: {
-        ...data,
-        autores: data.autores as string[],
+        titulo: dto.titulo,
+        isbn: dto.isbn,
+        editora: dto.editora ?? null,
+        paginas: dto.paginas ?? null,
+        ano: dto.ano ?? null,
+        autores: dto.autores ?? [],
+        usuarioId: userId,
       },
     });
 
-    return this.mapToResponseDto(livro);
-  }
-
-  async remove(id: number, userId: number) {
-    const associacao = await this.prisma.usuarioLivro.findUnique({
-      where: {
-        usuarioId_livroId: {
-          usuarioId: userId,
-          livroId: id,
-        },
-      },
-    });
-
-    if (!associacao) {
-      throw new NotFoundException('Livro não encontrado para este usuário');
-    }
-
-    await this.prisma.usuarioLivro.delete({
-      where: {
-        usuarioId_livroId: {
-          usuarioId: userId,
-          livroId: id,
-        },
-      },
-    });
-
-    return this.prisma.livro.delete({ where: { id } });
-  }
-
-  private mapToResponseDto(livro: Livro): LivroResponseDto {
     return {
       id: livro.id,
       titulo: livro.titulo,
@@ -153,10 +45,111 @@ export class LivrosService {
       editora: livro.editora,
       paginas: livro.paginas,
       ano: livro.ano,
-      autores: Array.isArray(livro.autores)
-        ? livro.autores.filter((a): a is string => typeof a === 'string')
-        : [],
+      autores: livro.autores,
       createdAt: livro.createdAt,
     };
+  }
+
+  async findAll(
+    page: number,
+    limit: number,
+    userId: number,
+  ): Promise<PaginatedResponseDto<LivroResponseDto>> {
+    const [total, livros] = await this.prisma.$transaction([
+      this.prisma.livro.count({ where: { usuarioId: userId } }),
+      this.prisma.livro.findMany({
+        where: { usuarioId: userId },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const data = livros.map((livro) => ({
+      id: livro.id,
+      titulo: livro.titulo,
+      isbn: livro.isbn,
+      editora: livro.editora,
+      paginas: livro.paginas,
+      ano: livro.ano,
+      autores: livro.autores,
+      createdAt: livro.createdAt,
+    }));
+
+    return {
+      page,
+      limit,
+      totalRecords: total,
+      data,
+    };
+  }
+
+  async findOne(id: number, userId: number): Promise<LivroResponseDto> {
+    const livro = await this.prisma.livro.findFirst({
+      where: { id, usuarioId: userId },
+    });
+
+    if (!livro) {
+      throw new NotFoundException('Livro não encontrado para este usuário');
+    }
+
+    return {
+      id: livro.id,
+      titulo: livro.titulo,
+      isbn: livro.isbn,
+      editora: livro.editora,
+      paginas: livro.paginas,
+      ano: livro.ano,
+      autores: livro.autores,
+      createdAt: livro.createdAt,
+    };
+  }
+
+  async update(
+    id: number,
+    dto: UpdateLivroDto,
+    userId: number,
+  ): Promise<LivroResponseDto> {
+    const livro = await this.prisma.livro.findFirst({
+      where: { id, usuarioId: userId },
+    });
+
+    if (!livro) {
+      throw new NotFoundException('Livro não encontrado para este usuário');
+    }
+
+    const updated = await this.prisma.livro.update({
+      where: { id },
+      data: {
+        titulo: dto.titulo ?? livro.titulo,
+        paginas: dto.paginas ?? livro.paginas,
+        editora: dto.editora ?? livro.editora,
+        ano: dto.ano ?? livro.ano,
+        autores: dto.autores ?? livro.autores,
+      },
+    });
+
+    return {
+      id: updated.id,
+      titulo: updated.titulo,
+      isbn: updated.isbn,
+      editora: updated.editora,
+      paginas: updated.paginas,
+      ano: updated.ano,
+      autores: updated.autores,
+      createdAt: updated.createdAt,
+    };
+  }
+
+  async remove(id: number, userId: number): Promise<void> {
+    const livro = await this.prisma.livro.findFirst({
+      where: { id, usuarioId: userId },
+    });
+
+    if (!livro) {
+      throw new NotFoundException('Livro não encontrado para este usuário');
+    }
+
+    await this.prisma.livro.delete({ where: { id } });
   }
 }

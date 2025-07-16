@@ -1,19 +1,25 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class PaginatedResponseDto<T> {
-  @ApiProperty({ example: 1, description: 'Página atual' })
+  @ApiProperty({ example: 1, description: 'Número da página atual' })
   page: number;
 
-  @ApiProperty({ example: 10, description: 'Quantidade de itens por página' })
+  @ApiProperty({
+    example: 10,
+    description: 'Quantidade máxima de itens por página',
+  })
   limit: number;
 
-  @ApiProperty({ example: 100, description: 'Total de registros encontrados' })
+  @ApiProperty({
+    example: 100,
+    description: 'Total geral de registros encontrados (sem paginação)',
+  })
   totalRecords: number;
 
   @ApiProperty({
-    description: 'Lista de itens da página atual',
+    description: 'Itens retornados na página atual',
     isArray: true,
-    type: Object, // o Swagger vai entender via @ApiExtraModels no controller
+    type: Object, // o tipo real será resolvido no @ApiExtraModels do controller
   })
   data: T[];
 }

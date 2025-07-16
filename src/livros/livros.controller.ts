@@ -111,8 +111,10 @@ export class LivrosController {
   })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithUser,
   ): Promise<SingleResponseDto<LivroResponseDto>> {
-    const livro = await this.livrosService.findOne(id);
+    const userId = req.user.sub;
+    const livro = await this.livrosService.findOne(id, userId);
     return {
       success: true,
       data: livro,

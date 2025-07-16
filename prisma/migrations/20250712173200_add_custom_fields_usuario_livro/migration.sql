@@ -1,0 +1,1 @@
+echo "-- migration ignorada propositalmente" > prisma/migrations/20250712173200_add_custom_fields_usuario_livro/migration.sql

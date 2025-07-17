@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Usuario {
-  id        Int     @id @default(autoincrement())
-  nome      String
-  email     String  @unique
-  senha     String
-  createdAt DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  nome            String
+  email           String   @unique
+  senha           String
+  emailConfirmado Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
-  livros    Livro[] // Relação 1:N com livros
+  livros          Livro[] // Relação 1:N com livros
 }
 
 model Livro {
